@@ -6,37 +6,43 @@ namespace Elevator
 {
     class Program
     {
+        public enum Destination
+        {
+            Up,
+            Down
+        }
+
         public class Passenger
         {
             public int FloorEnter { get; private set; }
             public int FloorExit { get; private set; }
-            public bool IsUp { get; private set; }
+            public Destination Destination { get; private set; }
 
             public Passenger(int currentFloor, int floors)
             {
                 FloorEnter = currentFloor;
-                (IsUp, FloorExit) = RandomFloor(currentFloor, floors);
+                (Destination, FloorExit) = RandomFloor(currentFloor, floors);
             }
 
             public void SetRouteFloor(int currentFloor, int floors)
             {
                 FloorEnter = FloorExit;
-                (IsUp, FloorExit) = RandomFloor(currentFloor, floors);
+                (Destination, FloorExit) = RandomFloor(currentFloor, floors);
             }
 
-            public (bool, int) RandomFloor(int currentFloor, int floors)
+            public (Destination, int) RandomFloor(int currentFloor, int floors)
             {
-                bool isUp;
+                Destination destination;
                 Random random = new Random();
 
                 if (currentFloor == 1)
-                    isUp = true;
+                    destination = Destination.Up;
                 else if (currentFloor == floors)
-                    isUp = false;
+                    destination = Destination.Down;
                 else
-                    isUp = random.Next(100) < 50;
+                    destination = (Destination)random.Next(Enum.GetNames(typeof(Destination)).Length);
 
-                return (isUp, random.Next(isUp ? currentFloor + 1 : 1, isUp ? floors + 1 : currentFloor));
+                return (destination, random.Next(destination == Destination.Up ? currentFloor + 1 : 1, destination == Destination.Up ? floors + 1 : currentFloor));
             }
         }
 
@@ -75,7 +81,7 @@ namespace Elevator
         public class Elevator
         {
             const int Capacity = 5;
-            bool IsUp = true;
+            Destination Destination = Destination.Up;
             int Floor = 1;
             int FreeCapacity;
             readonly List<Passenger> InElevator = new List<Passenger>();
@@ -86,9 +92,9 @@ namespace Elevator
                 while (passengers.Count() > 0)
                 {
                     if (floors == Floor)
-                        IsUp = false;
+                        Destination = Destination.Down;
                     else if (Floor == 1)
-                        IsUp = true;
+                        Destination = Destination.Up;
 
                     //check if passengers out
                     if (InElevator.Where(i => i.FloorExit == Floor).Count() > 0)
@@ -102,7 +108,8 @@ namespace Elevator
                     if (FreeCapacity > 0)
                     {
                         if (InElevator.Count() == 0 && passengers.Where(i => i.FloorEnter == Floor).Count() > 0
-                            && passengers.Where(i => i.FloorEnter == Floor && i.IsUp == !IsUp).Count() > passengers.Where(i => i.FloorEnter == Floor && i.IsUp == IsUp).Count())
+                            && passengers.Where(i => i.FloorEnter == Floor && i.Destination == (Destination == Destination.Up ? Destination.Down : Destination.Up)).Count() > 
+                            passengers.Where(i => i.FloorEnter == Floor && i.Destination == Destination).Count())
                             passengersToLift(true);
                         else
                             passengersToLift();
@@ -118,13 +125,13 @@ namespace Elevator
                     //route reverse
                     if (floors != Floor && Floor != 1 && InElevator.Count() == 0)
                     {
-                        if (IsUp && passengers.Where(i => i.FloorEnter > Floor).Count() == 0)
-                            IsUp = false;
-                        else if (!IsUp && passengers.Where(i => i.FloorEnter < Floor).Count() == 0)
-                            IsUp = true;
+                        if (Destination == Destination.Up && passengers.Where(i => i.FloorEnter > Floor).Count() == 0)
+                            Destination = Destination.Down;
+                        else if (Destination == Destination.Down && passengers.Where(i => i.FloorEnter < Floor).Count() == 0)
+                            Destination = Destination.Up;
                     }
 
-                    if (IsUp)
+                    if (Destination == Destination.Up)
                         Floor++;
                     else
                         Floor--;
@@ -133,9 +140,9 @@ namespace Elevator
                 void passengersToLift(bool reverse = false)
                 {
                     if (reverse)
-                        IsUp = !IsUp;
+                        Destination = Destination == Destination.Up ? Destination.Down : Destination.Up;
 
-                    InElevator.AddRange(passengers.Where(i => i.FloorEnter == Floor && i.IsUp == IsUp).Take(FreeCapacity).ToList());
+                    InElevator.AddRange(passengers.Where(i => i.FloorEnter == Floor && i.Destination == Destination).Take(FreeCapacity).ToList());
                 }
             }
         }
